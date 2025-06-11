@@ -1,0 +1,6 @@
+smolagents
+selenium
+helium
+solana
+pillow
+requests 
