@@ -3,6 +3,8 @@ import random
 from multiprocessing import Process, Queue
 import threading
 
+from solana_agent_kit.agent import Agent
+
 from dotenv import load_dotenv
 from e2b_desktop import Sandbox
 import webview
@@ -44,6 +46,15 @@ def create_window(stream_url, width, height, command_queue):
 
 def main():
     print("> Starting desktop sandbox...")
+
+    print("> Initializing Solana Agent...")
+    solana_agent = Agent()
+    print(" - Solana Agent initialized")
+
+    print("> Running Solana Agent...")
+    solana_agent.run()
+    print(" - Solana Agent finished")
+
     desktop = Sandbox()
     print(" - Desktop Sandbox started, ID:", desktop.sandbox_id)
 

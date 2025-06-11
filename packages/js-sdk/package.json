@@ -61,6 +61,7 @@
     "vitest": "^3.0.5"
   },
   "dependencies": {
+    "@e2b/desktop": "^1.9.1",
     "e2b": "^1.4.0"
   }
 }
