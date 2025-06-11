@@ -1,15 +1,17 @@
 # SMOLana Agent
 
-An intelligent agent for Solana blockchain development, token trading, and NFT creation using SmolAgents and Metaplex.
+An intelligent agent for Solana blockchain development, token trading, and NFT creation using Scrapybara, SmolAgents and Metaplex.
 
 ## Overview
 
 SolanaAI Agent is a comprehensive toolset that combines:
 
-1. **SmolAgents browser automation** - for interacting with Solana websites, documentation, and block explorers
+1. **Scrapybara browser automation** - for interacting with Solana websites, documentation, and block explorers with live streaming
 2. **On-chain transactions** - for creating, sending, and trading tokens on Solana
 3. **Metaplex integration** - for NFT creation and metadata management
 4. **AI assistance** - powered by various AI providers (Claude, GPT-4, local Ollama models)
+5. **Human-in-the-loop interaction** - for oversight and control of AI-driven trading agents
+6. **Live agent monitoring** - through desktop streaming with Scrapybara integration
 
 This project allows developers to programmatically interact with the Solana ecosystem while leveraging AI for understanding blockchain concepts, documentation, and automating common tasks.
 
@@ -21,6 +23,9 @@ This project allows developers to programmatically interact with the Solana ecos
 - 📈 **Token information and analytics** via Birdeye API
 - 📚 **Documentation extraction** from Solana and Metaplex resources
 - 🔄 **Code generation** for Solana smart contracts and client code
+- 🔍 **Live agent monitoring** through integrated streaming of remote desktop sessions
+- 👤 **Human-in-the-loop control** with real-time interaction with AI trading agents
+- 🔧 **Multi-tool agent capabilities** with bash, browser, computer control, and file editing
 
 ## Installation
 
@@ -30,6 +35,7 @@ This project allows developers to programmatically interact with the Solana ecos
 - Chrome browser (for web automation)
 - Node.js and npm (for TypeScript components)
 - Solana CLI tools (optional but recommended)
+- Scrapybara API key (for enhanced browser automation)
 
 ### Setup
 
@@ -57,6 +63,8 @@ This project allows developers to programmatically interact with the Solana ecos
    export ANTHROPIC_API_KEY="your-anthropic-key"
    export BIRDEYE_API_KEY="your-birdeye-key"
    export OLLAMA_API_BASE="http://localhost:11434"  # if using local Ollama
+   export SCRAPY_API_KEY="your-scrapybara-key"  # for browser automation
+   export SOLANA_RPC_URL="https://api.helius-rpc.com/?api-key=your-helius-key"
    ```
 
 ## Configuration
@@ -71,11 +79,12 @@ Create a `config.json` file with your settings:
   "headless_browser": false,
   "ollama_endpoint": "http://localhost:11434",
   "api_keys": {
-    "openai": "your-openai-key",
+    "openai": "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",
     "anthropic": "your-anthropic-key",
-    "xai": "your-xai-key",
-    "openrouter": "your-openrouter-key",
-    "birdeye": "your-birdeye-key"
+    "xai": "xai-Giq2FSEVKQIz39mlYYnnv0lP1f1St0C5q7vwYgWQcmD4tnixutyYjsas0FsaCD7ykvosYolUIusPOAB5",
+    "openrouter": "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",
+    "birdeye": "41b49e8793df4350aad42f98dd376c43",
+    "scrapybara": "scrapy-7ba1d433-ad58-43a8-b62b-50670c3983fa"
   }
 }
 ```
@@ -87,6 +96,12 @@ Create a `config.json` file with your settings:
 The system provides a comprehensive CLI for all core functionality:
 
 ```bash
+# Launch the trading dashboard with different options
+python simple_launcher.py
+python simple_launcher.py --scrapybara  # Enable browser automation and streaming
+python simple_launcher.py --stream-only  # Only open the Scrapybara stream in browser
+python simple_launcher.py --browser-only  # Open in browser instead of webview window
+
 # Run a general query
 python main.py --config config.json query "Explain how Metaplex NFTs work"
 
@@ -139,6 +154,18 @@ solana_ai.close()
 
 The main agent that handles general queries, Solana wallet interactions, and NFT creation.
 
+### ScrapybaraIntegration
+
+Advanced browser automation and desktop streaming tool with multiple capabilities:
+- Remote browser and desktop environment control
+- Live streaming with authentication
+- Multi-tool agent system with bash, browser, computer control, and file editing
+- Human-in-the-loop interaction with AI agents
+
+### DashboardViewer
+
+Embeds live streaming of browser activities and agent actions into the trading dashboard.
+
 ### SolanaWebBrowser
 
 A specialized browser automation tool for navigating Solana-related websites and extracting information.
@@ -156,6 +183,64 @@ TypeScript integration for Metaplex NFT operations, including creation, updates,
 - **Private Keys**: Never share your configuration file with API keys or wallet private keys
 - **Code Execution**: The system executes code from documentation sites - use at your own risk
 - **Web Automation**: Browser automation should be monitored when performing sensitive operations
+
+## Scrapybara Integration Features
+
+The Scrapybara integration provides powerful features for browser automation, remote desktop control, and AI-driven trading:
+
+### Browser Automation
+
+```python
+# Initialize Scrapybara with your API key
+from desktop_trading.integrations import ScrapybaraIntegration
+scrapybara = ScrapybaraIntegration(api_key="your-scrapybara-key")
+
+# Start a browser instance
+await scrapybara.start_instance(instance_type="browser", timeout_hours=1)
+
+# Set up browser and navigate to a website
+await scrapybara.setup_browser()
+await scrapybara.run_action("browser", action="navigate", url="https://www.pump.fun/")
+
+# Click elements, type text, and evaluate JavaScript
+await scrapybara.run_action("browser", action="click", selector="button.login")
+await scrapybara.run_action("browser", action="fill", selector="input[name=email]", value="user@example.com")
+await scrapybara.run_action("browser", action="evaluate", script="document.title")
+```
+
+### Live Streaming
+
+Access a live stream URL to monitor agent activities in real-time:
+
+```python
+# Get stream URL from instance info
+instance_info = await scrapybara.start_instance()
+stream_url = instance_info.get("stream_url")
+
+# Embed the stream URL in the trading dashboard
+from desktop_trading.integrations import DashboardViewer
+dashboard = DashboardViewer()
+dashboard.inject_stream_url(stream_url)
+```
+
+### Human-in-the-Loop Agent Interaction
+
+Interact with AI agents using Claude and various tools:
+
+```python
+# Run an AI agent with multiple tools
+await scrapybara.run_agent(
+    instructions="Research the top 10 tokens on Pump.fun and summarize their metrics",
+    model="claude-3-opus-20240229",
+    tools=["bash", "browser", "computer", "edit"]
+)
+
+# Continue conversation with the agent
+await scrapybara.run_agent(
+    instructions="Select the token with the highest trading volume and explain why",
+    conversation_id="previous-conversation-id"  # To continue the conversation
+)
+```
 
 ## Contributing
 
