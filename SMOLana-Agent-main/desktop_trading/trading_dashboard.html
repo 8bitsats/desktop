@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solana Trading Dashboard</title>
+    <style>
+        /* Solana Color Palette */
+        :root {
+            --solana-purple: #9945FF;
+            --solana-green: #14F195;
+            --solana-dark: #121212;
+            --solana-light: #f9fafb;
+            --solana-gray: #343434;
+            --solana-light-gray: #a1a1aa;
+            --font-primary: 'Roboto', sans-serif;
+        }
+
+        body {
+            font-family: var(--font-primary);
+            margin: 0;
+            padding: 0;
+            background-color: var(--solana-dark);
+            color: var(--solana-light);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--solana-purple);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+        }
+
+        .logo h1 {
+            margin: 0;
+            color: var(--solana-purple);
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .logo .highlight {
+            color: var(--solana-green);
+        }
+
+        .connection {
+            display: flex;
+            align-items: center;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            margin-right: 20px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .online {
+            background-color: var(--solana-green);
+        }
+
+        .offline {
+            background-color: #ff3b30;
+        }
+
+        /* Dashboard Layout */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 3fr;
+            grid-gap: 20px;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background-color: var(--solana-gray);
+            border-radius: 10px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Main Content */
+        .main-content {
+            display: grid;
+            grid-template-rows: auto 1fr;
+            grid-gap: 20px;
+        }
+
+        /* Trading Panel */
+        .trading-panel {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-gap: 20px;
+        }
+
+        .panel {
+            background-color: var(--solana-gray);
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .panel h2 {
+            margin-top: 0;
+            color: var(--solana-purple);
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+
+        /* Charts Container */
+        .charts {
+            background-color: var(--solana-gray);
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        /* Buttons */
+        button {
+            background-color: var(--solana-purple);
+            color: var(--solana-light);
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #8032df;
+        }
+
+        button.success {
+            background-color: var(--solana-green);
+        }
+
+        button.success:hover {
+            background-color: #10ce81;
+        }
+
+        button.danger {
+            background-color: #ff3b30;
+        }
+
+        button.danger:hover {
+            background-color: #d93229;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--solana-light-gray);
+        }
+
+        th {
+            color: var(--solana-light);
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background-color: rgba(153, 69, 255, 0.1);
+        }
+
+        /* Agent Section */
+        .agent {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .agent-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .agent-name {
+            font-weight: 600;
+            color: var(--solana-green);
+        }
+
+        .agent-confidence {
+            font-size: 14px;
+            color: var(--solana-light-gray);
+        }
+
+        /* Wallet Section */
+        .wallet-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .balance {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--solana-green);
+        }
+
+        /* Chart Placeholder */
+        .chart-container {
+            width: 100%;
+            height: 300px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--solana-light-gray);
+        }
+
+        /* Trade History */
+        .trade-history {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        /* Tokens Section */
+        .token {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .token-info {
+            display: flex;
+            align-items: center;
+        }
+
+        .token-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 10px;
+            background-color: var(--solana-light);
+            border-radius: 50%;
+        }
+
+        .token-change {
+            font-weight: 600;
+        }
+
+        .positive {
+            color: var(--solana-green);
+        }
+
+        .negative {
+            color: #ff3b30;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <h1>Solana <span class="highlight">Trading Desktop</span></h1>
+            </div>
+            <div class="connection">
+                <div class="status">
+                    <div class="status-indicator online"></div>
+                    <span>Connected</span>
+                </div>
+                <button id="refresh-btn">Refresh</button>
+            </div>
+        </header>
+
+        <div class="dashboard">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <div class="panel">
+                    <h2>Wallet</h2>
+                    <div class="wallet-info">
+                        <span>SOL Balance:</span>
+                        <span class="balance">5.237</span>
+                    </div>
+                    <button class="success">Deposit</button>
+                    <button class="danger">Withdraw</button>
+                </div>
+
+                <div class="panel">
+                    <h2>AI Agents</h2>
+                    <div class="agent">
+                        <div class="agent-header">
+                            <span class="agent-name">Warren Buffett</span>
+                            <span class="agent-confidence">75% Buy</span>
+                        </div>
+                        <p>Strong fundamentals, recommend accumulate.</p>
+                    </div>
+                    <div class="agent">
+                        <div class="agent-header">
+                            <span class="agent-name">Cathie Wood</span>
+                            <span class="agent-confidence">82% Buy</span>
+                        </div>
+                        <p>Innovative project with growth potential.</p>
+                    </div>
+                    <div class="agent">
+                        <div class="agent-header">
+                            <span class="agent-name">Charlie Munger</span>
+                            <span class="agent-confidence">67% Hold</span>
+                        </div>
+                        <p>Cautiously optimistic, monitor closely.</p>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h2>Your Tokens</h2>
+                    <div class="token">
+                        <div class="token-info">
+                            <div class="token-icon"></div>
+                            <div>SOL</div>
+                        </div>
+                        <div class="token-change positive">+2.1%</div>
+                    </div>
+                    <div class="token">
+                        <div class="token-info">
+                            <div class="token-icon"></div>
+                            <div>BONK</div>
+                        </div>
+                        <div class="token-change positive">+12.5%</div>
+                    </div>
+                    <div class="token">
+                        <div class="token-info">
+                            <div class="token-icon"></div>
+                            <div>JUP</div>
+                        </div>
+                        <div class="token-change negative">-3.2%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="main-content">
+                <!-- Trading Panel -->
+                <div class="trading-panel">
+                    <div class="panel">
+                        <h2>Market Snapshot</h2>
+                        <table>
+                            <tr>
+                                <th>Token</th>
+                                <th>Price</th>
+                                <th>24h</th>
+                            </tr>
+                            <tr>
+                                <td>SOL</td>
+                                <td>$189.43</td>
+                                <td class="positive">+2.1%</td>
+                            </tr>
+                            <tr>
+                                <td>BONK</td>
+                                <td>$0.000021</td>
+                                <td class="positive">+12.5%</td>
+                            </tr>
+                            <tr>
+                                <td>JUP</td>
+                                <td>$1.23</td>
+                                <td class="negative">-3.2%</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <div class="panel">
+                        <h2>Quick Trade</h2>
+                        <div>
+                            <div style="margin-bottom: 10px;">
+                                <label for="token-select">Token:</label>
+                                <select id="token-select" style="width: 100%; padding: 8px; margin-top: 5px; background-color: var(--solana-dark); color: var(--solana-light); border: 1px solid var(--solana-light-gray);">
+                                    <option value="SOL">SOL</option>
+                                    <option value="BONK">BONK</option>
+                                    <option value="JUP">JUP</option>
+                                </select>
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <label for="amount">Amount:</label>
+                                <input id="amount" type="number" step="0.01" placeholder="0.00" style="width: 100%; padding: 8px; margin-top: 5px; background-color: var(--solana-dark); color: var(--solana-light); border: 1px solid var(--solana-light-gray);">
+                            </div>
+                            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                                <button class="success" style="flex: 1;">Buy</button>
+                                <button class="danger" style="flex: 1;">Sell</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <h2>Recent Trades</h2>
+                        <div class="trade-history">
+                            <table>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Pair</th>
+                                    <th>Action</th>
+                                    <th>Price</th>
+                                </tr>
+                                <tr>
+                                    <td>13:42</td>
+                                    <td>SOL/USDC</td>
+                                    <td>Buy</td>
+                                    <td>$187.52</td>
+                                </tr>
+                                <tr>
+                                    <td>10:15</td>
+                                    <td>BONK/USDC</td>
+                                    <td>Buy</td>
+                                    <td>$0.000018</td>
+                                </tr>
+                                <tr>
+                                    <td>09:30</td>
+                                    <td>JUP/USDC</td>
+                                    <td>Sell</td>
+                                    <td>$1.27</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="charts">
+                    <h2>Price Chart</h2>
+                    <div class="chart-container">
+                        <p>Price chart will display here - Connect real data</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // This is a placeholder for dynamic functionality
+        // In a real implementation, we would connect this to the backend
+        
+        // Example refresh functionality
+        document.getElementById('refresh-btn').addEventListener('click', function() {
+            alert('Refreshing data...');
+            // In real implementation:
+            // fetchMarketData();
+            // updateWalletBalance();
+            // updateAgentRecommendations();
+        });
+        
+        // Example trade execution
+        document.querySelector('button.success').addEventListener('click', function() {
+            const token = document.getElementById('token-select').value;
+            const amount = document.getElementById('amount').value;
+            
+            if (!amount || amount <= 0) {
+                alert('Please enter a valid amount');
+                return;
+            }
+            
+            alert(`Buying ${amount} ${token}...`);
+            // In real implementation:
+            // executeTrade(token, amount, 'buy');
+        });
+        
+        document.querySelector('button.danger').addEventListener('click', function() {
+            const token = document.getElementById('token-select').value;
+            const amount = document.getElementById('amount').value;
+            
+            if (!amount || amount <= 0) {
+                alert('Please enter a valid amount');
+                return;
+            }
+            
+            alert(`Selling ${amount} ${token}...`);
+            // In real implementation:
+            // executeTrade(token, amount, 'sell');
+        });
+    </script>
+</body>
+</html>
