@@ -11,11 +11,23 @@ import time
 from typing import Dict, List, Optional, Any, Union
 from pathlib import Path
 from dotenv import load_dotenv
-from solana.rpc.api import Client as SolanaClient
-from solana.rpc.types import TokenAccountOpts
-from solana.publickey import PublicKey
-from solana.transaction import Transaction
+from flask import Blueprint, jsonify, request, current_app
 import base58
+
+# Try to import Solana packages, fail gracefully if not available
+try:
+    from solana.rpc.api import Client as SolanaClient
+    from solana.rpc.types import TokenAccountOpts
+    from solana.publickey import PublicKey
+    from solana.transaction import Transaction
+    solana_sdk_available = True
+except ImportError:
+    logging.warning("Solana SDK not installed. Limited functionality available.")
+    solana_sdk_available = False
+    # Define dummy classes for type hints to work
+    class SolanaClient:
+        def __init__(self, *args, **kwargs):
+            pass
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -53,11 +65,20 @@ class SolanaAPI:
             rpc_endpoint: RPC endpoint URL, defaults to DEFAULT_RPC_ENDPOINT
         """
         self.rpc_endpoint = rpc_endpoint or os.environ.get("SOLANA_RPC_ENDPOINT", DEFAULT_RPC_ENDPOINT)
-        self.client = SolanaClient(self.rpc_endpoint)
         self.wallet_pubkey = None
         self.wallet_connected = False
         self.private_key = None
-        logger.info(f"Initialized Solana API client with endpoint: {self.rpc_endpoint}")
+        
+        if not solana_sdk_available:
+            logger.warning("Solana SDK not available. Running in limited functionality mode.")
+            logger.info("Install solana-sdk with: pip install solana-py")
+        else:
+            try:
+                self.client = SolanaClient(self.rpc_endpoint)
+                logger.info(f"Initialized Solana API client with endpoint: {self.rpc_endpoint}")
+            except Exception as e:
+                logger.error(f"Failed to initialize Solana client: {e}")
+                self.client = None
     
     def connect_wallet(self, private_key: Optional[str] = None) -> bool:
         """Connect wallet using private key
@@ -68,6 +89,10 @@ class SolanaAPI:
         Returns:
             True if connection successful, False otherwise
         """
+        if not solana_sdk_available:
+            logger.error("Cannot connect wallet: Solana SDK not installed")
+            return False
+            
         try:
             # Get private key from args or environment
             key = private_key or os.environ.get("SOLANA_PRIVATE_KEY")
@@ -107,8 +132,14 @@ class SolanaAPI:
         Returns:
             Dict with balance information
         """
+        if not solana_sdk_available:
+            return {"error": "Solana SDK not installed", "note": "Install with: pip install solana-py"}
+            
         if not self.wallet_connected or not self.wallet_pubkey:
             return {"error": "Wallet not connected"}
+        
+        if self.client is None:
+            return {"error": "Solana client not initialized"}
             
         try:
             response = self.client.get_balance(self.wallet_pubkey)
@@ -199,6 +230,268 @@ class SolanaAPI:
             }
         }
         return market_data
+
+
+# Create Flask Blueprint for API routes
+api = Blueprint('api', __name__)
+_scrapybara_instance = None
+
+
+@api.route('/status')
+def api_status():
+    """API status endpoint"""
+    return jsonify({
+        'status': 'ok',
+        'solana_rpc_configured': bool(os.environ.get('SOLANA_RPC_URL')),
+        'scrapybara_configured': bool(os.environ.get('SCRAPY_API_KEY')),
+        'scrapybara_active': _scrapybara_instance is not None
+    })
+
+
+# Scrapybara routes
+@api.route('/scrapybara/status')
+def scrapybara_status():
+    """Get Scrapybara instance status"""
+    global _scrapybara_instance
+    
+    if not _scrapybara_instance:
+        return jsonify({
+            'active': False,
+            'message': 'No active Scrapybara instance'
+        })
+    
+    return jsonify({
+        'active': True,
+        'instance_id': getattr(_scrapybara_instance, 'instance', {}).get('id', 'unknown'),
+        'stream_url': getattr(_scrapybara_instance, 'stream_url', None),
+        'browser_active': getattr(_scrapybara_instance, 'browser_cdp_url', None) is not None
+    })
+
+
+@api.route('/scrapybara/start', methods=['POST'])
+def start_scrapybara():
+    """Start Scrapybara instance"""
+    global _scrapybara_instance
+    
+    # Check if Scrapybara is already running
+    if _scrapybara_instance:
+        return jsonify({
+            'success': False,
+            'message': 'Scrapybara instance already running',
+            'stream_url': _scrapybara_instance.stream_url
+        })
+    
+    # Check API key
+    api_key = os.environ.get('SCRAPY_API_KEY')
+    if not api_key:
+        return jsonify({
+            'success': False,
+            'message': 'SCRAPY_API_KEY not set in environment'
+        })
+    
+    # Get instance parameters from request
+    data = request.get_json() or {}
+    instance_type = data.get('instance_type', os.environ.get('SCRAPY_INSTANCE_TYPE', 'browser'))
+    timeout_hours = int(data.get('timeout_hours', os.environ.get('SCRAPY_TIMEOUT_HOURS', '1')))
+    
+    # Import and initialize Scrapybara
+    try:
+        from .integrations import ScrapybaraIntegration
+        _scrapybara_instance = ScrapybaraIntegration(api_key=api_key)
+        
+        # Start instance asynchronously
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            instance_info = loop.run_until_complete(
+                _scrapybara_instance.start_instance(
+                    instance_type=instance_type,
+                    timeout_hours=timeout_hours
+                )
+            )
+            
+            # Set up browser
+            browser_info = loop.run_until_complete(
+                _scrapybara_instance.setup_browser()
+            )
+            
+            return jsonify({
+                'success': True,
+                'message': f'Scrapybara {instance_type} instance started',
+                'stream_url': instance_info.get('stream_url'),
+                'browser_url': browser_info
+            })
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logger.error(f"Error starting Scrapybara: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error starting Scrapybara: {str(e)}'
+        })
+
+
+@api.route('/scrapybara/stop', methods=['POST'])
+def stop_scrapybara():
+    """Stop Scrapybara instance"""
+    global _scrapybara_instance
+    
+    if not _scrapybara_instance:
+        return jsonify({
+            'success': False, 
+            'message': 'No active Scrapybara instance'
+        })
+    
+    try:
+        # Stop instance asynchronously
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(_scrapybara_instance.stop_instance())
+        finally:
+            loop.close()
+        
+        # Clear instance reference
+        _scrapybara_instance = None
+        
+        return jsonify({
+            'success': True,
+            'message': 'Scrapybara instance stopped'
+        })
+    except Exception as e:
+        logger.error(f"Error stopping Scrapybara: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error stopping Scrapybara: {str(e)}'
+        })
+
+
+@api.route('/scrapybara/screenshot', methods=['GET'])
+def get_screenshot():
+    """Take a screenshot of the Scrapybara instance"""
+    global _scrapybara_instance
+    
+    if not _scrapybara_instance:
+        return jsonify({
+            'success': False,
+            'message': 'No active Scrapybara instance'
+        })
+    
+    try:
+        # Take screenshot asynchronously
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            screenshot_b64 = loop.run_until_complete(_scrapybara_instance.take_screenshot())
+        finally:
+            loop.close()
+        
+        return jsonify({
+            'success': True,
+            'image': screenshot_b64
+        })
+    except Exception as e:
+        logger.error(f"Error taking screenshot: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error taking screenshot: {str(e)}'
+        })
+
+
+@api.route('/scrapybara/action', methods=['POST'])
+def run_scrapybara_action():
+    """Run a Scrapybara action"""
+    global _scrapybara_instance
+    
+    if not _scrapybara_instance:
+        return jsonify({
+            'success': False,
+            'message': 'No active Scrapybara instance'
+        })
+    
+    # Get action parameters from request
+    data = request.get_json()
+    if not data or 'action_type' not in data:
+        return jsonify({
+            'success': False,
+            'message': 'Missing action_type parameter'
+        })
+    
+    action_type = data.get('action_type')
+    params = {k: v for k, v in data.items() if k != 'action_type'}
+    
+    try:
+        # Run action asynchronously
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(
+                _scrapybara_instance.run_action(action_type=action_type, **params)
+            )
+        finally:
+            loop.close()
+        
+        return jsonify({
+            'success': True,
+            'result': result
+        })
+    except Exception as e:
+        logger.error(f"Error running Scrapybara action: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error running action: {str(e)}'
+        })
+
+
+@api.route('/scrapybara/agent', methods=['POST'])
+def run_agent_command():
+    """Run an agent command with Scrapybara"""
+    global _scrapybara_instance
+    
+    if not _scrapybara_instance:
+        return jsonify({
+            'success': False,
+            'message': 'No active Scrapybara instance'
+        })
+    
+    # Get agent parameters
+    data = request.get_json()
+    if not data or 'prompt' not in data:
+        return jsonify({
+            'success': False,
+            'message': 'Missing prompt parameter'
+        })
+        
+    prompt = data.get('prompt')
+    tools = data.get('tools', ['computer', 'browser'])
+    system = data.get('system')
+    
+    try:
+        # Run agent asynchronously
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(
+                _scrapybara_instance.run_agent(
+                    prompt=prompt,
+                    tools=tools,
+                    system=system
+                )
+            )
+        finally:
+            loop.close()
+        
+        return jsonify({
+            'success': True,
+            'result': result
+        })
+    except Exception as e:
+        logger.error(f"Error running agent command: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error running agent command: {str(e)}'
+        })
     
     async def get_token_accounts(self) -> List[Dict]:
         """Get token accounts owned by the connected wallet

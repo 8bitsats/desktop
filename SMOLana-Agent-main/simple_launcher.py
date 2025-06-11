@@ -13,6 +13,9 @@ import threading
 import socket
 import webbrowser
 from pathlib import Path
+from dotenv import load_dotenv
+from flask import Flask, send_from_directory, jsonify
+import webview
 
 # Setup logging
 logging.basicConfig(
@@ -21,6 +24,14 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)]
 )
 logger = logging.getLogger("solana_launcher")
+
+# Import the API blueprint - will be None if import fails
+try:
+    from desktop_trading.solana_api import api as api_blueprint
+    logger.info("Solana API blueprint imported successfully")
+except ImportError as e:
+    logger.warning(f"Error importing Solana API blueprint: {e}")
+    api_blueprint = None
 
 # Check for required packages
 required_packages = {
@@ -39,18 +50,6 @@ if missing_packages:
     logger.error(f"Missing packages: {', '.join(missing_packages)}")
     logger.error(f"Install with: pip install {' '.join(missing_packages)}")
     sys.exit(1)
-
-# Import after checks
-import webview
-from flask import Flask, send_from_directory, jsonify
-from dotenv import load_dotenv
-
-# Import our API routes blueprint
-try:
-    from desktop_trading.api_routes import api as api_blueprint
-except ImportError:
-    logger.error("Failed to import API routes. Make sure the solana_api.py module exists.")
-    api_blueprint = None
 
 # Load environment variables
 load_dotenv()
@@ -136,15 +135,28 @@ def create_flask_app(scrapybara_stream_url=None):
         "desktop_trading"
     )
     
+    # Check for trading UI module
+    try:
+        from desktop_trading.trading_ui import get_ui
+        ui_available = True
+    except ImportError:
+        ui_available = False
+        
     # Create Flask app
     app = Flask(__name__, static_folder='desktop_trading', template_folder='desktop_trading')
 
-    # Register API blueprint if available
-    if api_blueprint is not None:
-        app.register_blueprint(api_blueprint, url_prefix='/api')
+    # Try to import and register API blueprint
+    api_blueprint = None
+    try:
+        from desktop_trading.solana_api import api as solana_api_blueprint
+        app.register_blueprint(solana_api_blueprint, url_prefix='/api')
         logger.info("API routes registered successfully")
-    else:
-        logger.warning("API blueprint not available. API endpoints will not be accessible.")
+    except ImportError as e:
+        logger.warning(f"Error importing Solana API blueprint: {e}")
+    except Exception as e:
+        logger.warning(f"Error registering API blueprint: {e}")
+        logger.info("API endpoints will not be accessible.")
+    
 
     # Route for the main dashboard
     @app.route('/')
@@ -156,16 +168,28 @@ def create_flask_app(scrapybara_stream_url=None):
             with open(dashboard_path, 'r') as f:
                 html_content = f.read()
                 
-            # Create a stream viewer component
-            stream_viewer = f"""
-            <div id="stream-viewer" style="margin-top: 20px; border: 1px solid #9945FF; border-radius: 10px; overflow: hidden;">
-                <h2 style="background-color: #9945FF; color: white; margin: 0; padding: 10px;">Live Trading Agent View</h2>
-                <iframe src="{scrapybara_stream_url}" style="width: 100%; height: 500px; border: none;"></iframe>
-            </div>
-            """
-            
-            # Inject viewer before closing body tag
-            modified_html = html_content.replace('</body>', f'{stream_viewer}\n</body>')
+            # Use trading_ui module if available
+            try:
+                from desktop_trading.trading_ui import get_ui
+                ui = get_ui()
+                
+                # Get UI components
+                stream_viewer = ui.get_stream_container_html(scrapybara_stream_url)
+                agent_panel = ui.get_agent_control_panel_html()
+                
+                # Inject components before closing body tag
+                modified_html = html_content.replace('</body>', f'{stream_viewer}\n{agent_panel}\n</body>')
+            except ImportError:
+                # Fallback to basic HTML injection
+                stream_viewer = f"""
+                <div id="stream-viewer" style="margin-top: 20px; border: 1px solid #9945FF; border-radius: 10px; overflow: hidden;">
+                    <h2 style="background-color: #9945FF; color: white; margin: 0; padding: 10px;">Live Trading Agent View</h2>
+                    <iframe src="{scrapybara_stream_url}" style="width: 100%; height: 500px; border: none;"></iframe>
+                </div>
+                """
+                
+                # Inject viewer before closing body tag
+                modified_html = html_content.replace('</body>', f'{stream_viewer}\n</body>')
             
             # Return the modified HTML
             from flask import Response
@@ -214,6 +238,7 @@ async def setup_scrapybara():
     """Set up Scrapybara instance and return stream URL"""
     try:
         from desktop_trading.integrations import ScrapybaraIntegration
+        from desktop_trading.trading_ui import get_ui
         
         # Check for API key
         api_key = os.environ.get('SCRAPY_API_KEY')
@@ -224,8 +249,14 @@ async def setup_scrapybara():
         # Initialize Scrapybara integration
         scrapybara = ScrapybaraIntegration(api_key=api_key)
         
+        # Get instance type from env or default to browser
+        instance_type = os.environ.get('SCRAPY_INSTANCE_TYPE', 'browser')
+        timeout_hours = int(os.environ.get('SCRAPY_TIMEOUT_HOURS', '1'))
+        
+        logger.info(f"Starting Scrapybara {instance_type} instance with {timeout_hours}hr timeout")
+        
         # Start instance and get stream URL
-        instance_info = await scrapybara.start_instance(instance_type="browser", timeout_hours=1)
+        instance_info = await scrapybara.start_instance(instance_type=instance_type, timeout_hours=timeout_hours)
         stream_url = instance_info.get("stream_url")
         
         if not stream_url:
@@ -233,14 +264,15 @@ async def setup_scrapybara():
             return None
             
         # Set up browser
-        await scrapybara.setup_browser()
+        cdp_url = await scrapybara.setup_browser()
+        logger.info(f"Scrapybara browser started with CDP URL: {cdp_url}")
         
         logger.info(f"Scrapybara instance started with stream URL: {stream_url}")
-        return stream_url
+        return stream_url, scrapybara
         
     except Exception as e:
         logger.error(f"Error setting up Scrapybara: {e}")
-        return None
+        return None, None
 
 def launch_dashboard(debug=False, port=None, use_scrapybara=False, browser_only=False, fullscreen=False):
     """Launch the trading dashboard in a webview window
@@ -268,18 +300,32 @@ def launch_dashboard(debug=False, port=None, use_scrapybara=False, browser_only=
         
     # Set up Scrapybara if requested
     scrapybara_stream_url = None
+    scrapybara_instance = None
     if use_scrapybara:
+        # Check API key
+        if not os.environ.get('SCRAPY_API_KEY'):
+            logger.error("SCRAPY_API_KEY not set but --scrapybara option requested")
+            logger.info("Either set SCRAPY_API_KEY environment variable or disable --scrapybara option")
+            return
+            
         # Run asyncio loop to set up Scrapybara
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            scrapybara_stream_url = loop.run_until_complete(setup_scrapybara())
-            if scrapybara_stream_url:
-                logger.info(f"Scrapybara stream URL: {scrapybara_stream_url}")
-                
-                # Open stream URL in browser for direct viewing
-                if browser_only:
-                    webbrowser.open(scrapybara_stream_url)
+            result = loop.run_until_complete(setup_scrapybara())
+            if result and isinstance(result, tuple) and len(result) == 2:
+                scrapybara_stream_url, scrapybara_instance = result
+                if scrapybara_stream_url:
+                    logger.info(f"Scrapybara stream URL: {scrapybara_stream_url}")
+                    
+                    # Open stream URL in browser for direct viewing if requested
+                    if browser_only or '--stream-only' in sys.argv:
+                        webbrowser.open(scrapybara_stream_url)
+                        
+                        # If stream-only, exit after opening browser
+                        if '--stream-only' in sys.argv:
+                            logger.info("Stream-only mode: browser opened with stream URL")
+                            return
         finally:
             loop.close()
     
@@ -343,35 +389,62 @@ def main():
         
     # Check for Scrapybara integration availability
     if args.scrapybara and not env_status['scrapy_configured']:
-        logger.error("SCRAPY_API_KEY not set but --scrapybara option requested")
-        logger.info("Either set SCRAPY_API_KEY environment variable or disable --scrapybara option")
-        sys.exit(1)
+        logger.warning("SCRAPY_API_KEY not set but --scrapybara option requested")
+        logger.info("Running with limited functionality - Scrapybara browser automation will be disabled")
+        # Continue execution but with limited functionality
         
     # Special case - stream only mode
     if args.stream_only:
         if not args.scrapybara:
             logger.error("--stream-only requires --scrapybara")
             sys.exit(1)
+        
+        # Check API key
+        if not env_status['scrapy_configured']:
+            logger.error("SCRAPY_API_KEY not set - required for stream-only mode")
+            logger.info("Please set SCRAPY_API_KEY in your .env file or environment")
+            logger.info("Example: export SCRAPY_API_KEY=your_key_here")
+            sys.exit(1)
             
         # Set up scrapybara and open just the stream
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            stream_url = loop.run_until_complete(setup_scrapybara())
-            if stream_url:
-                logger.info(f"Opening Scrapybara stream in browser: {stream_url}")
-                webbrowser.open(stream_url)
+            result = loop.run_until_complete(setup_scrapybara())
+            if result and isinstance(result, tuple) and len(result) == 2:
+                stream_url, scrapybara_instance = result
+                if stream_url:
+                    logger.info(f"Opening Scrapybara stream in browser: {stream_url}")
+                    webbrowser.open(stream_url)
                 
-                # Keep main thread alive
-                try:
-                    while True:
-                        import time
-                        time.sleep(1)
-                except KeyboardInterrupt:
-                    logger.info("Stream viewer stopped by user")
+                    # Keep main thread alive
+                    try:
+                        while True:
+                            import time
+                            time.sleep(1)
+                    except KeyboardInterrupt:
+                        logger.info("Stream viewer stopped by user")
+                    finally:
+                        # Cleanup the Scrapybara instance on exit
+                        if scrapybara_instance:
+                            cleanup_loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(cleanup_loop)
+                            try:
+                                cleanup_loop.run_until_complete(scrapybara_instance.stop_instance())
+                                logger.info("Scrapybara instance stopped")
+                            except Exception as e:
+                                logger.error(f"Error stopping Scrapybara: {e}")
+                            finally:
+                                cleanup_loop.close()
+                else:
+                    logger.error("Received empty stream URL")
+                    sys.exit(1)
             else:
-                logger.error("Failed to get Scrapybara stream URL")
+                logger.error("Failed to get Scrapybara stream URL or instance")
                 sys.exit(1)
+        except Exception as e:
+            logger.error(f"Error setting up Scrapybara: {e}")
+            sys.exit(1)
         finally:
             loop.close()
         return

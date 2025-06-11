@@ -1,6 +1,21 @@
-smolagents
-selenium
-helium
-solana
-pillow
-requests 
+# Core dependencies
+smolagents>=0.1.0
+selenium>=4.9.0
+helium>=3.2.8
+solana-py>=0.29.0
+pillow>=9.5.0
+requests>=2.31.0
+
+# API dependencies
+flask>=2.3.2
+python-dotenv>=1.0.0
+base58>=2.1.1
+flask-cors>=3.0.10
+
+# Desktop UI dependencies
+pywebview>=4.2.2
+asyncio>=3.4.3
+
+# Scrapybara integration
+# Note: Uncomment below when you have an API key
+# scrapybara>=0.1.0

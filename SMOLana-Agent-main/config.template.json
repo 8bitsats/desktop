@@ -1,0 +1,41 @@
+{
+  "default_model": "anthropic/claude-3-opus-20240229",
+  "browser_model": "openai/gpt-4-1106-preview",
+  "dev_model": "anthropic/claude-3-sonnet-20240229",
+  "headless_browser": false,
+  "desktop_streaming": true,
+  "ollama_endpoint": "http://localhost:11434",
+  "solana": {
+    "network": "mainnet-beta",
+    "rpc_url": "${SOLANA_RPC_URL}",
+    "default_wallet_path": "~/.config/solana/id.json",
+    "transaction_timeout": 60
+  },
+  "api_keys": {
+    "openai": "${OPENAI_API_KEY}",
+    "anthropic": "${ANTHROPIC_API_KEY}",
+    "openrouter": "${OPENROUTER_API_KEY}",
+    "birdeye": "${BIRDEYE_API_KEY}",
+    "scrapybara": "${SCRAPY_API_KEY}"
+  },
+  "scrapybara": {
+    "enabled": true,
+    "instance_type": "browser",
+    "timeout_hours": 1,
+    "auto_start": false,
+    "save_auth_state": true,
+    "tools": ["bash", "browser", "computer", "edit"]
+  },
+  "ui": {
+    "dashboard_theme": "dark",
+    "refresh_interval_ms": 5000,
+    "auto_update_enabled": true,
+    "stream_height_px": 500
+  },
+  "trading": {
+    "default_slippage_bps": 100,
+    "auto_confirm_trades": false,
+    "max_transaction_retries": 3,
+    "fee_payer_wallet": "${SOLANA_FEE_PAYER}"
+  }
+}

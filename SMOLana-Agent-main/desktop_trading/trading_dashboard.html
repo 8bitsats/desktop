@@ -447,6 +447,104 @@
         .button-secondary:hover, .btn-sell:hover {
             background-color: #10d985;
         }
+    /* Scrapybara Integration Styles */
+    #stream-container {
+        margin-top: 20px;
+        border: 1px solid var(--solana-purple);
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    #stream-container h2 {
+        background-color: var(--solana-purple);
+        color: white;
+        margin: 0;
+        padding: 10px;
+    }
+    
+    #stream-container iframe {
+        width: 100%;
+        height: 500px;
+        border: none;
+        background-color: #f1f1f1;
+    }
+    
+    #agent-control-panel {
+        margin-top: 20px;
+        border: 1px solid var(--solana-green);
+        border-radius: 10px;
+        padding: 15px;
+        background-color: var(--solana-gray);
+    }
+    
+    #agent-controls {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+    
+    #agent-command-form {
+        display: flex;
+        margin-bottom: 15px;
+    }
+    
+    #agent-command-input {
+        flex: 1;
+        padding: 8px;
+        border-radius: 4px 0 0 4px;
+        border: 1px solid #444;
+        background-color: #222;
+        color: white;
+    }
+    
+    #agent-command-btn {
+        border-radius: 0 4px 4px 0;
+    }
+    
+    #agent-command-history {
+        height: 200px;
+        overflow-y: auto;
+        padding: 10px;
+        background-color: #222;
+        border-radius: 4px;
+        font-family: monospace;
+    }
+    
+    #agent-status {
+        display: flex;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    
+    #agent-status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+    }
+    
+    .status-active {
+        background-color: var(--solana-green);
+        box-shadow: 0 0 5px var(--solana-green);
+    }
+    
+    .status-inactive {
+        background-color: #ff3b30;
+    }
+    
+    .history-item {
+        padding: 5px 0;
+        border-bottom: 1px solid #333;
+    }
+    
+    /* Trade History Styles */
+    #trade-history-panel {
+        margin-top: 20px;
+        border: 1px solid var(--solana-light-gray);
+        border-radius: 10px;
+        padding: 15px;
+        background-color: var(--solana-gray);
+    }
     </style>
 </head>
 <body>
@@ -648,6 +746,28 @@
     </div>
 
     <!-- JavaScript -->
+    <!-- JavaScript Dependencies -->
     <script src="trading_dashboard.js"></script>
+    <script src="scrapybara.js"></script>
+    
+    <!-- Initialize Dashboard -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check for Scrapybara API status
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('API Status:', data);
+                    if (data.scrapybara_configured) {
+                        console.log('Scrapybara is configured, initializing components');
+                    } else {
+                        console.log('Scrapybara is not configured');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking API status:', error);
+                });
+        });
+    </script>
 </body>
 </html>
