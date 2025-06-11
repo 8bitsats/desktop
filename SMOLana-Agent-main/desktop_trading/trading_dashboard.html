@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Solana Trading Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         /* Solana Color Palette */
         :root {
@@ -273,20 +274,190 @@
         .negative {
             color: #ff3b30;
         }
+
+        /* Trade styles */
+        .trade-buy {
+            color: var(--solana-green);
+            font-weight: bold;
+        }
+        
+        .trade-sell {
+            color: #ff4560;
+            font-weight: bold;
+        }
+        
+        .rec-buy {
+            color: var(--solana-green);
+            font-weight: bold;
+        }
+        
+        .rec-sell {
+            color: #ff4560;
+            font-weight: bold;
+        }
+        
+        .rec-hold {
+            color: #f0b90b;
+            font-weight: bold;
+        }
+        
+        .positive-change {
+            color: var(--solana-green);
+        }
+        
+        .negative-change {
+            color: #ff4560;
+        }
+        
+        .confidence-high {
+            color: var(--solana-green);
+            font-weight: bold;
+        }
+        
+        .confidence-medium {
+            color: #f0b90b;
+            font-weight: bold;
+        }
+        
+        .confidence-low {
+            color: #ff4560;
+            font-weight: bold;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.7);
+        }
+        
+        .modal-content {
+            background-color: var(--solana-dark);
+            margin: 10% auto;
+            padding: 30px;
+            border: 1px solid var(--solana-purple);
+            width: 400px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(153, 69, 255, 0.3);
+        }
+        
+        .modal h3 {
+            margin-top: 0;
+            color: var(--solana-purple);
+        }
+        
+        .close {
+            color: var(--solana-light-gray);
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover {
+            color: var(--solana-green);
+        }
+        
+        .modal input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            background-color: var(--solana-gray);
+            border: 1px solid var(--solana-light-gray);
+            color: var(--solana-light);
+            border-radius: 4px;
+        }
+        
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        /* Notification styles */
+        #notifications {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1100;
+        }
+        
+        .notification {
+            background-color: var(--solana-gray);
+            color: var(--solana-light);
+            padding: 15px 20px;
+            margin-bottom: 10px;
+            border-left: 4px solid var(--solana-purple);
+            border-radius: 4px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            opacity: 1;
+            transition: opacity 0.5s;
+        }
+        
+        .notification-success {
+            border-left-color: var(--solana-green);
+        }
+        
+        .notification-error {
+            border-left-color: #ff4560;
+        }
+
+        /* Chart placeholder */
+        .chart-placeholder {
+            background-color: var(--solana-gray);
+            height: 300px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--solana-light-gray);
+            font-style: italic;
+            border-radius: 8px;
+        }
+
+        .button-primary, .btn-buy, .btn-execute {
+            background-color: var(--solana-purple);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .button-primary:hover, .btn-buy:hover, .btn-execute:hover {
+            background-color: #8035e0;
+        }
+
+        .button-secondary, .btn-sell {
+            background-color: var(--solana-green);
+            color: black;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .button-secondary:hover, .btn-sell:hover {
+            background-color: #10d985;
+        }
     </style>
 </head>
 <body>
+    <div id="notifications"></div>
     <div class="container">
         <header>
             <div class="logo">
-                <h1>Solana <span class="highlight">Trading Desktop</span></h1>
+                <h1>Solana Trading Dashboard</h1>
             </div>
-            <div class="connection">
-                <div class="status">
-                    <div class="status-indicator online"></div>
-                    <span>Connected</span>
-                </div>
-                <button id="refresh-btn">Refresh</button>
+            <div class="user-actions">
+                <button class="button-primary">Connect Wallet</button>
             </div>
         </header>
 
@@ -443,54 +614,40 @@
                 <div class="charts">
                     <h2>Price Chart</h2>
                     <div class="chart-container">
-                        <p>Price chart will display here - Connect real data</p>
+                        <div id="price-chart" class="chart-placeholder">
+                            <!-- Chart will be populated by JavaScript -->
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script>
-        // This is a placeholder for dynamic functionality
-        // In a real implementation, we would connect this to the backend
-        
-        // Example refresh functionality
-        document.getElementById('refresh-btn').addEventListener('click', function() {
-            alert('Refreshing data...');
-            // In real implementation:
-            // fetchMarketData();
-            // updateWalletBalance();
-            // updateAgentRecommendations();
-        });
-        
-        // Example trade execution
-        document.querySelector('button.success').addEventListener('click', function() {
-            const token = document.getElementById('token-select').value;
-            const amount = document.getElementById('amount').value;
-            
-            if (!amount || amount <= 0) {
-                alert('Please enter a valid amount');
-                return;
-            }
-            
-            alert(`Buying ${amount} ${token}...`);
-            // In real implementation:
-            // executeTrade(token, amount, 'buy');
-        });
-        
-        document.querySelector('button.danger').addEventListener('click', function() {
-            const token = document.getElementById('token-select').value;
-            const amount = document.getElementById('amount').value;
-            
-            if (!amount || amount <= 0) {
-                alert('Please enter a valid amount');
-                return;
-            }
-            
-            alert(`Selling ${amount} ${token}...`);
-            // In real implementation:
-            // executeTrade(token, amount, 'sell');
-        });
-    </script>
+    <!-- Trade Modal -->
+    <div id="trade-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Confirm Trade</h3>
+            <p>
+                <span id="modal-action" class="trade-buy">BUY</span> 
+                <span id="modal-pair">SOL/USDC</span> at 
+                <span id="modal-price">0.00</span>
+            </p>
+            <div class="form-group">
+                <label>Amount</label>
+                <input type="number" id="trade-amount" placeholder="Enter amount...">
+            </div>
+            <div class="form-group">
+                <label>Total</label>
+                <span id="trade-total" class="total-value">$0.00</span>
+            </div>
+            <div class="modal-footer">
+                <button id="confirm-trade" class="button-primary">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="trading_dashboard.js"></script>
 </body>
 </html>
