@@ -79,12 +79,12 @@ Create a `config.json` file with your settings:
   "headless_browser": false,
   "ollama_endpoint": "http://localhost:11434",
   "api_keys": {
-    "openai": "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",
+    "openai": "your-openai-key",
     "anthropic": "your-anthropic-key",
-    "xai": "xai-Giq2FSEVKQIz39mlYYnnv0lP1f1St0C5q7vwYgWQcmD4tnixutyYjsas0FsaCD7ykvosYolUIusPOAB5",
-    "openrouter": "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",
-    "birdeye": "41b49e8793df4350aad42f98dd376c43",
-    "scrapybara": "scrapy-7ba1d433-ad58-43a8-b62b-50670c3983fa"
+    "xai": "your-xai-key",
+    "openrouter": "your-openrouter-key",
+    "birdeye": "your-birdeye-key",
+    "scrapybara": "your-scrapybara-key"
   }
 }
 ```
@@ -193,7 +193,7 @@ The Scrapybara integration provides powerful features for browser automation, re
 ```python
 # Initialize Scrapybara with your API key
 from desktop_trading.integrations import ScrapybaraIntegration
-scrapybara = ScrapybaraIntegration(api_key="your-scrapybara-key")
+scrapybara = ScrapybaraIntegration(api_key="YOUR_SCRAPYBARA_API_KEY")
 
 # Start a browser instance
 await scrapybara.start_instance(instance_type="browser", timeout_hours=1)
